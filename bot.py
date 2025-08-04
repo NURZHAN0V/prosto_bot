@@ -15,6 +15,10 @@ AI_API_URL = "http://localhost:11434/api/generate"
 
 def ask_ai(prompt):
     """Отправляет запрос к нейросети"""
+    # Ограничиваем длину промпта
+    if len(prompt) > 1000:
+        return "Сообщение слишком длинное (макс. 1000 символов)."
+    
     try:
         payload = {
             "model": "mistral",
@@ -22,16 +26,22 @@ def ask_ai(prompt):
             "stream": False
         }
         
-        response = requests.post(AI_API_URL, json=payload, timeout=30)
+        response = requests.post(AI_API_URL, json=payload, timeout=120)
         response.raise_for_status()
         
         data = response.json()
-        return data.get('response', 'Извините, не удалось получить ответ от нейросети.')
+        return data.get('response', 'Извините, не удалось получить ответ от нейросети.').strip()
     
+    except requests.exceptions.Timeout:
+        return "⏳ Слишком долго генерируем ответ. Попробуй позже или задай короткий вопрос."
+    except requests.exceptions.ConnectionError:
+        return "🚫 Не удалось подключиться к Ollama. Проверь, запущен ли сервер."
     except requests.exceptions.RequestException as e:
-        return f"Ошибка подключения к нейросети: {str(e)}"
+        return f"❌ Ошибка подключения к нейросети: {str(e)}"
     except json.JSONDecodeError:
         return "Ошибка обработки ответа от нейросети"
+    except Exception as e:
+        return f"Ошибка обработки: {e}"
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
