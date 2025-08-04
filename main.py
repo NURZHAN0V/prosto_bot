@@ -120,48 +120,83 @@ class GreetingBot:
     
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик текстовых сообщений"""
+        if not update.message:
+            logger.error("Получено пустое сообщение")
+            return
+            
         text = update.message.text.strip()
         
-        # Если сообщение похоже на имя (не содержит цифр и специальных символов)
-        if text and len(text) <= 50 and text.replace(' ', '').isalpha():
-            await self._send_greeting(update, context, text)
-        else:
-            await update.message.reply_text(
-                "👋 Привет! Напишите мне своё имя, и я поздороваюсь с вами! ✨"
-            )
+        try:
+            # Если сообщение похоже на имя (не содержит цифр и специальных символов)
+            if text and len(text) <= 50 and text.replace(' ', '').isalpha():
+                await self._send_greeting(update, context, text)
+            else:
+                await update.message.reply_text(
+                    "👋 Привет! Напишите мне своё имя, и я поздороваюсь с вами! ✨"
+                )
+        except Exception as e:
+            logger.error(f"Ошибка при обработке сообщения: {e}")
+            try:
+                await update.message.reply_text(
+                    "❌ Произошла ошибка при обработке сообщения. Попробуйте позже."
+                )
+            except:
+                pass
     
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик нажатий на кнопки"""
         query = update.callback_query
-        await query.answer()
+        
+        if not query:
+            logger.error("Получен пустой callback query")
+            return
+            
+        try:
+            await query.answer()
+        except Exception as e:
+            logger.error(f"Ошибка при ответе на callback: {e}")
         
         user = update.effective_user
+        if not user:
+            logger.error("Не удалось получить информацию о пользователе")
+            return
+            
         current_time = datetime.now().hour
         
-        if query.data == "greet":
-            await self._send_greeting(update, context, user.first_name)
-        elif query.data == "help":
-            await self.help_command(update, context)
-        elif query.data == "morning":
-            greeting = self._get_time_based_greeting(current_time, "утро")
-            await query.edit_message_text(
-                f"{greeting}, {user.first_name}! 🌅\n\nХорошего дня! ✨",
-                parse_mode='Markdown'
-            )
-        elif query.data == "evening":
-            greeting = self._get_time_based_greeting(current_time, "вечер")
-            await query.edit_message_text(
-                f"{greeting}, {user.first_name}! 🌆\n\nПриятного вечера! ✨",
-                parse_mode='Markdown'
-            )
+        try:
+            if query.data == "greet":
+                await self._send_greeting(update, context, user.first_name)
+            elif query.data == "help":
+                await self.help_command(update, context)
+            elif query.data == "morning":
+                greeting = self._get_time_based_greeting(current_time, "утро")
+                await query.edit_message_text(
+                    f"{greeting}, {user.first_name}! 🌅\n\nХорошего дня! ✨",
+                    parse_mode='Markdown'
+                )
+            elif query.data == "evening":
+                greeting = self._get_time_based_greeting(current_time, "вечер")
+                await query.edit_message_text(
+                    f"{greeting}, {user.first_name}! 🌆\n\nПриятного вечера! ✨",
+                    parse_mode='Markdown'
+                )
+        except Exception as e:
+            logger.error(f"Ошибка при обработке callback {query.data}: {e}")
+            try:
+                await query.edit_message_text(
+                    "❌ Произошла ошибка при обработке запроса. Попробуйте позже."
+                )
+            except:
+                pass
     
     async def _send_greeting(self, update: Update, context: ContextTypes.DEFAULT_TYPE, name: str):
         """Отправка приветствия с именем"""
-        current_time = datetime.now().hour
-        greeting = self._get_time_based_greeting(current_time)
-        
-        # Создаем красивое приветствие
-        greeting_text = f"""
+        try:
+            current_time = datetime.now().hour
+            greeting = self._get_time_based_greeting(current_time)
+            
+            # Создаем красивое приветствие
+            greeting_text = f"""
 {greeting}, *{name}*! ✨
 
 🎉 Рад вас видеть!
@@ -169,33 +204,49 @@ class GreetingBot:
 📅 Дата: {datetime.now().strftime("%d.%m.%Y")}
 
 Желаю вам отличного дня! 🌟
-        """.strip()
-        
-        # Создаем клавиатуру для дополнительных действий
-        keyboard = [
-            [
-                InlineKeyboardButton("🔄 Ещё раз", callback_data="greet"),
-                InlineKeyboardButton("🌅 Утреннее", callback_data="morning")
-            ],
-            [
-                InlineKeyboardButton("🌆 Вечернее", callback_data="evening"),
-                InlineKeyboardButton("ℹ️ Помощь", callback_data="help")
+            """.strip()
+            
+            # Создаем клавиатуру для дополнительных действий
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 Ещё раз", callback_data="greet"),
+                    InlineKeyboardButton("🌅 Утреннее", callback_data="morning")
+                ],
+                [
+                    InlineKeyboardButton("🌆 Вечернее", callback_data="evening"),
+                    InlineKeyboardButton("ℹ️ Помощь", callback_data="help")
+                ]
             ]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        if update.callback_query:
-            await update.callback_query.edit_message_text(
-                greeting_text,
-                parse_mode='Markdown',
-                reply_markup=reply_markup
-            )
-        else:
-            await update.message.reply_text(
-                greeting_text,
-                parse_mode='Markdown',
-                reply_markup=reply_markup
-            )
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            if update.callback_query:
+                await update.callback_query.edit_message_text(
+                    greeting_text,
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
+            elif update.message:
+                await update.message.reply_text(
+                    greeting_text,
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
+            else:
+                logger.error("Нет активного сообщения или callback для ответа")
+                
+        except Exception as e:
+            logger.error(f"Ошибка при отправке приветствия: {e}")
+            try:
+                if update.callback_query:
+                    await update.callback_query.edit_message_text(
+                        "❌ Произошла ошибка при отправке приветствия. Попробуйте позже."
+                    )
+                elif update.message:
+                    await update.message.reply_text(
+                        "❌ Произошла ошибка при отправке приветствия. Попробуйте позже."
+                    )
+            except:
+                pass
     
     def _get_time_based_greeting(self, hour: int, time_type: Optional[str] = None) -> str:
         """Получение приветствия в зависимости от времени суток"""
@@ -216,10 +267,17 @@ class GreetingBot:
     async def error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик ошибок"""
         logger.error(f"Произошла ошибка: {context.error}")
+        
+        # Проверяем, есть ли сообщение для ответа
         if update and update.effective_message:
-            await update.effective_message.reply_text(
-                "❌ Произошла ошибка. Попробуйте позже или обратитесь к администратору."
-            )
+            try:
+                await update.effective_message.reply_text(
+                    "❌ Произошла ошибка. Попробуйте позже или обратитесь к администратору."
+                )
+            except Exception as e:
+                logger.error(f"Не удалось отправить сообщение об ошибке: {e}")
+        else:
+            logger.error("Не удалось отправить сообщение об ошибке: нет активного сообщения")
     
     def run(self):
         """Запуск бота"""
