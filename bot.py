@@ -11,7 +11,7 @@ load_dotenv()
 bot = telebot.TeleBot(os.getenv('BOT_TOKEN'))
 
 # API эндпоинт для нейросети
-AI_API_URL = "http://localhost:11434/api/generate"
+AI_API_URL = "http://81.177.136.232:11434/api/generate"
 
 def ask_ai(prompt):
     """Отправляет запрос к нейросети"""
